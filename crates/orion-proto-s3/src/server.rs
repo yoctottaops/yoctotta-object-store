@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::Arc;
 
 use hyper::server::conn::http1;
@@ -26,8 +27,9 @@ impl S3Server {
         addr: SocketAddr,
         metrics_config: MetricsConfig,
         auth: Option<Arc<AuthProvider>>,
+        data_dir: &Path,
     ) -> Self {
-        let metrics = MetricsCollector::new(metrics_config);
+        let metrics = MetricsCollector::new(metrics_config, data_dir);
         let handler = Arc::new(S3Handler {
             store,
             buckets,

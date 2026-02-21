@@ -26,7 +26,7 @@ async fn start_server() -> (String, tokio::task::JoinHandle<()>, TempDir) {
     // Drop the listener so the server can bind to the same port.
     drop(listener);
 
-    let server = S3Server::new(store, buckets, meta, extensions, addr, MetricsConfig::default(), None);
+    let server = S3Server::new(store, buckets, meta, extensions, addr, MetricsConfig::default(), None, tmp.path());
 
     let handle = tokio::spawn(async move {
         let _ = server.run().await;

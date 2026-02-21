@@ -267,7 +267,7 @@ async fn main() -> anyhow::Result<()> {
 
     // ── Start S3 server ──
     let addr: SocketAddr = config.listen.parse()?;
-    let server = S3Server::new(store, buckets, meta, extensions.clone(), addr, metrics_config, auth);
+    let server = S3Server::new(store, buckets, meta, extensions.clone(), addr, metrics_config, auth, &config.data_dir);
 
     let ext_shutdown = extensions.clone();
     tokio::spawn(async move {
