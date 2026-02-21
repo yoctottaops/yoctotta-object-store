@@ -20,7 +20,7 @@ pub struct MetricsConfig {
 }
 
 fn default_sample_interval() -> u64 {
-    30
+    5
 }
 fn default_retention() -> u64 {
     18000

@@ -176,7 +176,7 @@ impl Default for MetricsCollectorConfig {
 // ── Defaults ──
 
 fn default_session_expiry() -> u64 { 3600 }
-fn default_sample_interval() -> u64 { 30 }
+fn default_sample_interval() -> u64 { 5 }
 fn default_retention() -> u64 { 18000 }
 fn default_listen() -> String { "0.0.0.0:9000".into() }
 fn default_data_dir() -> PathBuf { PathBuf::from("./data") }
