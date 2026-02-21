@@ -1,8 +1,38 @@
 # Yoctotta Object Store
 
-S3-compatible object storage with pluggable metadata backends and built-in extensions for vector search and webhook triggers.
+**A world-class, S3-compatible, AI-first object storage solution.**
 
-Designed to run anywhere from a Raspberry Pi to a multi-region cluster — same binary, same config.
+Yoctotta is an attempt to build a storage engine that treats AI workloads as first-class citizens — not an afterthought bolted on top. Every object you store is automatically indexed for semantic search via built-in vector embeddings, so your data is instantly queryable by meaning, not just by key. Pair that with a full S3-compatible API, pluggable metadata backends (SQLite, PostgreSQL, Raft-replicated SQLite), and a built-in management UI, and you get a single binary that runs anywhere from a Raspberry Pi to a multi-region cluster.
+
+## Screenshots
+
+### Dashboard
+Live process metrics, storage health, extension status, and bucket overview — all in one place.
+
+![Dashboard](docs/dashboard.png)
+
+### Bucket Management
+Create, browse, and manage buckets with a clean interface.
+
+![Buckets](docs/buckets.png)
+
+### RAG Search
+Semantic search across all stored objects using vector embeddings. Upload a document and immediately search it by meaning.
+
+![RAG Search](docs/rag-search.png)
+
+## Why Yoctotta?
+
+Most object stores treat data as opaque blobs. You upload a file, you get it back by key. If you want search, you build a separate pipeline — extract text, generate embeddings, push to a vector database, keep it all in sync.
+
+Yoctotta eliminates that entire pipeline. When you `PUT` an object, it is automatically chunked, embedded (using a fast on-device model via ONNX Runtime), and indexed. When you need to find something, you search by meaning — not by filename. All of this happens in the background without affecting normal read/write performance.
+
+**Key design goals:**
+- **AI-native** — built-in vector embeddings and semantic search, not a plugin
+- **S3-compatible** — drop-in replacement, works with AWS CLI, any S3 SDK, existing tools
+- **Single binary** — no external dependencies, no separate vector database, no message queue
+- **Runs anywhere** — same binary on a laptop, a Raspberry Pi, or a 10-node cluster
+- **Extensible** — trait-based architecture, swap any layer without touching the rest
 
 ## Quick Start
 
@@ -17,16 +47,39 @@ cargo build --release
 ./target/release/orion --listen 0.0.0.0:9000 --data ./storage
 ```
 
-## Management UI
+The management UI is available at `http://localhost:9000/_/ui`.
 
-Visit `http://localhost:9000/_/ui` for the built-in management console:
+## Usage with AWS CLI
 
-- **Dashboard** — live process metrics (CPU, memory, threads) with trend charts, storage stats, extension health
-- **Buckets** — create, delete, browse buckets
-- **Object Browser** — upload, download, delete objects with drag-and-drop
-- **RAG Search** — semantic search across indexed objects
+```bash
+aws configure set aws_access_key_id test
+aws configure set aws_secret_access_key test
 
-Auto-refresh and configurable metrics sampling (default: 30s intervals, 5h retention).
+aws --endpoint-url http://localhost:9000 s3 mb s3://my-bucket
+aws --endpoint-url http://localhost:9000 s3 cp file.txt s3://my-bucket/
+aws --endpoint-url http://localhost:9000 s3 ls s3://my-bucket/
+aws --endpoint-url http://localhost:9000 s3 cp s3://my-bucket/file.txt ./downloaded.txt
+```
+
+## Built-in AI: Vector Search
+
+Every text object uploaded to Yoctotta is automatically:
+
+1. **Chunked** into overlapping segments (configurable size/overlap)
+2. **Embedded** using `all-MiniLM-L6-v2` — a fast, high-quality model that runs entirely on CPU via ONNX Runtime
+3. **Indexed** in an in-memory vector store for instant semantic search
+
+All embedding runs asynchronously on background threads (`spawn_blocking`), so S3 reads, writes, and metadata operations are never blocked.
+
+Search via the UI or the API:
+
+```bash
+# Semantic search across all buckets
+curl "http://localhost:9000/_/api/search?q=authentication+flow&top_k=10"
+
+# Search within a specific bucket
+curl "http://localhost:9000/_/api/search?q=deployment+guide&bucket=docs&top_k=5"
+```
 
 ## Metadata Backends
 
@@ -90,18 +143,6 @@ password_hash = "<sha256 hex of password>"
 
 Generate a password hash: `echo -n "yourpassword" | sha256sum`
 
-## Usage with AWS CLI
-
-```bash
-aws configure set aws_access_key_id test
-aws configure set aws_secret_access_key test
-
-aws --endpoint-url http://localhost:9000 s3 mb s3://my-bucket
-aws --endpoint-url http://localhost:9000 s3 cp file.txt s3://my-bucket/
-aws --endpoint-url http://localhost:9000 s3 ls s3://my-bucket/
-aws --endpoint-url http://localhost:9000 s3 cp s3://my-bucket/file.txt ./downloaded.txt
-```
-
 ## Architecture
 
 ```
@@ -126,7 +167,7 @@ Every layer is a Rust trait — swap implementations without touching other laye
 
 ### RAG (Vector Search)
 
-Automatically indexes text objects into a vector store on upload. Pluggable embedder and vector store backends.
+Automatically indexes text objects into a vector store on upload. Uses `all-MiniLM-L6-v2` (384-dim, ONNX, CPU-only) for fast, high-quality embeddings. All inference is async and background — never blocks the request path.
 
 ### Triggers (Webhooks)
 
@@ -173,7 +214,7 @@ cross build --release --target aarch64-unknown-linux-gnu
 ## Project Structure
 
 ```
-yoctotta-object-store/
+yoctotta/
 ├── crates/
 │   ├── orion-core/           # Traits, types, extension system
 │   ├── orion-store-fs/       # Filesystem storage backend
@@ -185,6 +226,7 @@ yoctotta-object-store/
 │   ├── orion-ext-trigger/    # Webhook trigger extension
 │   ├── orion-ext-auth/       # Authentication extension
 │   └── orion-server/         # Binary entry point + CLI
+├── docs/                     # Screenshots and documentation
 └── orion.toml                # Configuration reference
 ```
 
