@@ -1,0 +1,81 @@
+[workspace]
+members = [
+    "crates/orion-core",
+    "crates/orion-store-fs",
+    "crates/orion-meta-sqlite",
+    "crates/orion-meta-postgres",
+    "crates/orion-meta-raft",
+    "crates/orion-proto-s3",
+    "crates/orion-ext-rag",
+    "crates/orion-ext-trigger",
+    "crates/orion-ext-auth",
+    "crates/orion-server",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/yoctottaops/yoctotta-object-store"
+
+[workspace.dependencies]
+# Core
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+bytes = "1"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+crc32fast = "1"
+hex = "0.4"
+sha2 = "0.10"
+base64 = "0.22"
+futures = "0.3"
+tokio-stream = "0.1"
+tokio-util = { version = "0.7", features = ["io"] }
+pin-project-lite = "0.2"
+bincode = "1"
+rand = "0.8"
+
+# HTTP / S3
+hyper = { version = "1", features = ["server", "http1", "http2"] }
+hyper-util = { version = "0.1", features = ["tokio", "server-auto", "http1", "http2"] }
+http = "1"
+http-body-util = "0.1"
+percent-encoding = "2"
+quick-xml = "0.37"
+hmac = "0.12"
+md-5 = "0.10"
+
+# Metadata
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Metadata - Postgres
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "chrono", "json"] }
+
+# Metadata - Raft
+openraft = { version = "0.9", features = ["serde", "storage-v2"] }
+
+# RAG extension
+usearch = "2"
+fastembed = "4"
+
+# Trigger extension
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# Internal crates
+orion-core = { path = "crates/orion-core" }
+orion-store-fs = { path = "crates/orion-store-fs" }
+orion-meta-sqlite = { path = "crates/orion-meta-sqlite" }
+orion-meta-postgres = { path = "crates/orion-meta-postgres" }
+orion-meta-raft = { path = "crates/orion-meta-raft" }
+orion-proto-s3 = { path = "crates/orion-proto-s3" }
+orion-ext-rag = { path = "crates/orion-ext-rag" }
+orion-ext-trigger = { path = "crates/orion-ext-trigger" }
+orion-ext-auth = { path = "crates/orion-ext-auth" }

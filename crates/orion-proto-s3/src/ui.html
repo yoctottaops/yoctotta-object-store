@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoctotta Object Store</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --bg-card: #1a1d27;
+  --bg-hover: #252836;
+  --border: #2e3144;
+  --text: #e4e6f0;
+  --text-dim: #8b8fa3;
+  --accent: #6c63ff;
+  --accent-hover: #5a52e0;
+  --green: #22c55e;
+  --red: #ef4444;
+  --orange: #f59e0b;
+  --blue: #3b82f6;
+  --radius: 8px;
+  --shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+/* ── Sidebar ── */
+.sidebar {
+  width: 220px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.logo {
+  padding: 20px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  border-bottom: 1px solid var(--border);
+  color: var(--accent);
+}
+.logo span { color: var(--text-dim); font-size: 11px; font-weight: 400; display: block; margin-top: 2px; }
+.nav { flex: 1; padding: 12px 0; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  cursor: pointer;
+  color: var(--text-dim);
+  transition: all 0.15s;
+  font-size: 14px;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--text); }
+.nav-item.active { color: var(--accent); border-left-color: var(--accent); background: var(--bg-hover); }
+.nav-icon { font-size: 16px; width: 20px; text-align: center; }
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sidebar-footer .btn-logout {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.sidebar-footer .btn-logout:hover { background: var(--bg-hover); color: var(--red); }
+/* ── Header bar ── */
+.header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.header-bar h2 { margin-bottom: 0; }
+.refresh-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.refresh-controls select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 4px 8px;
+  font-size: 12px;
+}
+.refresh-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+/* ── Main ── */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+}
+h2 { font-size: 22px; font-weight: 600; margin-bottom: 20px; }
+h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: var(--text-dim); }
+/* ── Cards ── */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.card-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.card-value { font-size: 24px; font-weight: 700; }
+.card-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+.card-chart { margin-top: 8px; }
+.card-chart svg { width: 100%; height: 40px; }
+/* ── Table ── */
+table { width: 100%; border-collapse: collapse; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+th { background: var(--bg-hover); text-align: left; padding: 10px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); font-weight: 600; }
+td { padding: 10px 14px; border-top: 1px solid var(--border); font-size: 13px; }
+tr:hover td { background: var(--bg-hover); }
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #fff;
+}
+.btn-primary { background: var(--accent); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-danger { background: var(--red); }
+.btn-danger:hover { background: #dc2626; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+.btn-ghost:hover { background: var(--bg-hover); color: var(--text); }
+/* ── Forms ── */
+input, select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+}
+input:focus, select:focus { border-color: var(--accent); }
+.form-row { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+/* ── Badge ── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
+.badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+.badge-blue { background: rgba(59,130,246,0.15); color: var(--blue); }
+/* ── Breadcrumb ── */
+.breadcrumb { display: flex; gap: 6px; align-items: center; margin-bottom: 16px; font-size: 13px; color: var(--text-dim); flex-wrap: wrap; }
+.breadcrumb a { color: var(--accent); cursor: pointer; text-decoration: none; }
+.breadcrumb a:hover { text-decoration: underline; }
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.modal {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; min-width: 400px; max-width: 600px; max-height: 80vh; overflow-y: auto;
+  box-shadow: var(--shadow);
+}
+.modal h3 { margin-bottom: 16px; }
+.modal-meta-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.modal-meta-key { color: var(--text-dim); }
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+/* ── Login overlay ── */
+.login-overlay {
+  position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 300;
+}
+.login-box {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 40px; width: 360px; box-shadow: var(--shadow);
+  text-align: center;
+}
+.login-box h2 { font-size: 24px; margin-bottom: 8px; color: var(--accent); }
+.login-box p { font-size: 13px; color: var(--text-dim); margin-bottom: 24px; }
+.login-box input {
+  width: 100%; margin-bottom: 12px; padding: 10px 14px;
+}
+.login-box .btn { width: 100%; justify-content: center; padding: 10px; font-size: 14px; margin-top: 4px; }
+.login-error { color: var(--red); font-size: 12px; margin-bottom: 8px; min-height: 16px; }
+/* ── Search results ── */
+.search-result {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 12px;
+}
+.search-result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.search-result-path { font-size: 13px; font-weight: 600; color: var(--accent); }
+.search-result-score { font-size: 12px; color: var(--text-dim); }
+.score-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.score-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+.search-result-text { font-size: 13px; color: var(--text-dim); margin-top: 8px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+/* ── Upload area ── */
+.upload-area {
+  border: 2px dashed var(--border); border-radius: var(--radius); padding: 32px;
+  text-align: center; cursor: pointer; transition: all 0.15s; margin-bottom: 16px;
+}
+.upload-area:hover, .upload-area.dragover { border-color: var(--accent); background: rgba(108,99,255,0.05); }
+.upload-area input[type=file] { display: none; }
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
+  border-radius: var(--radius); font-size: 13px; z-index: 200;
+  animation: fadeIn 0.2s;
+}
+.toast-success { background: var(--green); color: #fff; }
+.toast-error { background: var(--red); color: #fff; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+/* ── Empty state ── */
+.empty { text-align: center; padding: 48px; color: var(--text-dim); }
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+/* ── Loading ── */
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-center { display: flex; justify-content: center; padding: 48px; }
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .sidebar { width: 60px; }
+  .logo span, .nav-label, .sidebar-footer { display: none; }
+  .logo { padding: 16px; font-size: 16px; text-align: center; }
+  .nav-item { padding: 12px; justify-content: center; }
+  .main { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="logo">YOCTOTTA<span>Object Store</span></div>
+  <div class="nav">
+    <div class="nav-item active" onclick="navigate('dashboard')"><span class="nav-icon">&#9633;</span><span class="nav-label">Dashboard</span></div>
+    <div class="nav-item" onclick="navigate('buckets')"><span class="nav-icon">&#9744;</span><span class="nav-label">Buckets</span></div>
+    <div class="nav-item" onclick="navigate('browser')"><span class="nav-icon">&#9776;</span><span class="nav-label">Objects</span></div>
+    <div class="nav-item" id="nav-search" style="display:none" onclick="navigate('search')"><span class="nav-icon">&#8981;</span><span class="nav-label">RAG Search</span></div>
+  </div>
+  <div class="sidebar-footer">
+    <span>Yoctotta v0.1.0</span>
+    <button class="btn-logout" id="logout-btn" style="display:none" onclick="doLogout()" title="Logout">&#9211; Logout</button>
+  </div>
+</div>
+<div class="main" id="main"></div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+<div id="login-root"></div>
+
+<script>
+// ── State ──
+let currentPanel = 'dashboard';
+let browserBucket = '';
+let browserPrefix = '';
+let browserContinuation = null;
+let ragEnabled = false;
+let metricsHistory = [];
+let autoRefreshInterval = 10; // seconds, 0 = off
+let refreshTimer = null;
+let authRequired = false;
+
+// ── API Client with 401 handling ──
+async function apiFetch(url, opts = {}) {
+  const r = await fetch(url, opts);
+  if (r.status === 401) {
+    showLoginForm('Session expired. Please log in again.');
+    throw new Error('Unauthorized');
+  }
+  return r;
+}
+
+const api = {
+  async listBuckets() {
+    const r = await apiFetch('/');
+    const xml = parseXml(await r.text());
+    return [...xml.querySelectorAll('Bucket')].map(b => ({
+      name: xt(b, 'Name'),
+      createdAt: xt(b, 'CreationDate'),
+    }));
+  },
+  async createBucket(name) {
+    const r = await apiFetch('/' + encodeURIComponent(name), { method: 'PUT' });
+    if (!r.ok) throw new Error(await extractError(r));
+  },
+  async deleteBucket(name) {
+    const r = await apiFetch('/' + encodeURIComponent(name), { method: 'DELETE' });
+    if (!r.ok) throw new Error(await extractError(r));
+  },
+  async headBucket(name) {
+    const r = await apiFetch('/' + encodeURIComponent(name), { method: 'HEAD' });
+    return r.ok;
+  },
+  async listObjects(bucket, prefix, delimiter, continuation, maxKeys) {
+    let q = `/${encodeURIComponent(bucket)}?list-type=2`;
+    if (prefix) q += `&prefix=${encodeURIComponent(prefix)}`;
+    if (delimiter) q += `&delimiter=${encodeURIComponent(delimiter)}`;
+    if (continuation) q += `&continuation-token=${encodeURIComponent(continuation)}`;
+    if (maxKeys) q += `&max-keys=${maxKeys}`;
+    const r = await apiFetch(q);
+    const xml = parseXml(await r.text());
+    return {
+      entries: [...xml.querySelectorAll('Contents')].map(c => ({
+        key: xt(c, 'Key'),
+        size: parseInt(xt(c, 'Size') || '0'),
+        lastModified: xt(c, 'LastModified'),
+        etag: xt(c, 'ETag'),
+      })),
+      commonPrefixes: [...xml.querySelectorAll('CommonPrefixes')].map(p => xt(p, 'Prefix')),
+      isTruncated: xt(xml, 'IsTruncated') === 'true',
+      nextContinuation: xt(xml, 'NextContinuationToken'),
+      keyCount: parseInt(xt(xml, 'KeyCount') || '0'),
+    };
+  },
+  async putObject(bucket, key, file, contentType) {
+    const headers = {};
+    if (contentType) headers['Content-Type'] = contentType;
+    const r = await apiFetch(`/${encodeURIComponent(bucket)}/${key}`, {
+      method: 'PUT', body: file, headers,
+    });
+    if (!r.ok) throw new Error(await extractError(r));
+    return r.headers.get('etag');
+  },
+  async getObjectUrl(bucket, key) {
+    return `/${encodeURIComponent(bucket)}/${key}`;
+  },
+  async deleteObject(bucket, key) {
+    const r = await apiFetch(`/${encodeURIComponent(bucket)}/${key}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error(await extractError(r));
+  },
+  async headObject(bucket, key) {
+    const r = await apiFetch(`/${encodeURIComponent(bucket)}/${key}`, { method: 'HEAD' });
+    if (!r.ok) throw new Error(await extractError(r));
+    const h = {};
+    r.headers.forEach((v, k) => { h[k] = v; });
+    return h;
+  },
+  async getStats() {
+    const r = await apiFetch('/_/api/stats');
+    return r.json();
+  },
+  async getExtensions() {
+    const r = await apiFetch('/_/api/extensions');
+    return r.json();
+  },
+  async getMetrics() {
+    const r = await apiFetch('/_/api/metrics');
+    return r.json();
+  },
+  async search(query, topK, bucket) {
+    const body = { query, top_k: topK };
+    if (bucket) body.bucket = bucket;
+    const r = await apiFetch('/_/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return r.json();
+  },
+  async login(username, password) {
+    const r = await fetch('/_/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ error: 'Login failed' }));
+      throw new Error(err.error || 'Login failed');
+    }
+    return r.json();
+  },
+  async logout() {
+    await fetch('/_/api/logout', { method: 'POST' }).catch(() => {});
+  },
+};
+
+// ── XML helpers ──
+function parseXml(text) { return new DOMParser().parseFromString(text, 'text/xml'); }
+function xt(el, tag) { const n = el.querySelector(tag); return n ? n.textContent : ''; }
+async function extractError(r) {
+  try {
+    const xml = parseXml(await r.text());
+    return xt(xml, 'Message') || `HTTP ${r.status}`;
+  } catch { return `HTTP ${r.status}`; }
+}
+
+// ── Formatting helpers ──
+function formatBytes(b) {
+  if (b === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(b) / Math.log(1024));
+  return (b / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+}
+function formatDate(d) {
+  if (!d) return '-';
+  try { return new Date(d).toLocaleString(); } catch { return d; }
+}
+function formatUptime(secs) {
+  if (secs < 60) return Math.floor(secs) + 's';
+  if (secs < 3600) return Math.floor(secs / 60) + 'm ' + Math.floor(secs % 60) + 's';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  if (h < 24) return h + 'h ' + m + 'm';
+  const d = Math.floor(h / 24);
+  return d + 'd ' + (h % 24) + 'h';
+}
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+function formatTime(ts) {
+  const d = new Date(ts * 1000);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── SVG Sparkline ──
+function sparklineSvg(data, color, formatFn) {
+  if (!data || data.length < 2) return '<svg viewBox="0 0 200 40" xmlns="http://www.w3.org/2000/svg"><text x="100" y="25" text-anchor="middle" fill="#8b8fa3" font-size="10">Collecting...</text></svg>';
+  const w = 200, h = 40, pad = 2;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const points = data.map((v, i) => {
+    const x = pad + (i / (data.length - 1)) * (w - 2 * pad);
+    const y = h - pad - ((v - min) / range) * (h - 2 * pad);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const fillPoints = `${pad},${h - pad} ${points.join(' ')} ${w - pad},${h - pad}`;
+  const last = data[data.length - 1];
+  const label = formatFn ? formatFn(last) : last.toFixed(1);
+  return `<svg viewBox="0 0 200 40" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="${fillPoints}" fill="${color}" opacity="0.1"/>
+    <polyline points="${points.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${points[points.length - 1].split(',')[0]}" cy="${points[points.length - 1].split(',')[1]}" r="2.5" fill="${color}"/>
+  </svg>`;
+}
+
+// ── Toast ──
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-root').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ── Modal ──
+function showModal(html) {
+  document.getElementById('modal-root').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`;
+}
+function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
+
+// ── Login ──
+function showLoginForm(errorMsg) {
+  authRequired = true;
+  document.getElementById('login-root').innerHTML = `
+    <div class="login-overlay">
+      <div class="login-box">
+        <h2>YOCTOTTA</h2>
+        <p>Sign in to the management console</p>
+        <div class="login-error" id="login-error">${errorMsg ? escapeHtml(errorMsg) : ''}</div>
+        <input id="login-user" placeholder="Username" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+        <input id="login-pass" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+        <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+      </div>
+    </div>`;
+  setTimeout(() => { const el = document.getElementById('login-user'); if (el) el.focus(); }, 100);
+}
+
+function hideLoginForm() {
+  authRequired = false;
+  document.getElementById('login-root').innerHTML = '';
+}
+
+async function doLogin() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  if (!user || !pass) { errEl.textContent = 'Please enter username and password'; return; }
+  errEl.textContent = '';
+  try {
+    await api.login(user, pass);
+    hideLoginForm();
+    document.getElementById('logout-btn').style.display = '';
+    render();
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+}
+
+async function doLogout() {
+  await api.logout();
+  document.getElementById('logout-btn').style.display = 'none';
+  showLoginForm();
+}
+
+// ── Navigation ──
+function navigate(panel) {
+  currentPanel = panel;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const idx = { dashboard: 0, buckets: 1, browser: 2, search: 3 }[panel];
+  document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
+  render();
+}
+
+// ── Auto-refresh ──
+function setAutoRefresh(secs) {
+  autoRefreshInterval = secs;
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  if (secs > 0) {
+    refreshTimer = setInterval(() => {
+      if (currentPanel === 'dashboard') render();
+    }, secs * 1000);
+  }
+}
+
+async function render() {
+  const m = document.getElementById('main');
+  m.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  try {
+    switch (currentPanel) {
+      case 'dashboard': await renderDashboard(m); break;
+      case 'buckets': await renderBuckets(m); break;
+      case 'browser': await renderBrowser(m); break;
+      case 'search': await renderSearch(m); break;
+    }
+  } catch (e) {
+    if (e.message === 'Unauthorized') return;
+    m.innerHTML = `<div class="empty"><div class="empty-icon">!</div><p>${escapeHtml(e.message)}</p></div>`;
+  }
+}
+
+// ── Dashboard ──
+async function renderDashboard(m) {
+  const [stats, exts, metrics] = await Promise.all([
+    api.getStats(), api.getExtensions(), api.getMetrics()
+  ]);
+  metricsHistory = metrics;
+
+  // Check if RAG is available
+  ragEnabled = exts.extensions.some(e => e.name === 'rag' && e.enabled);
+  document.getElementById('nav-search').style.display = ragEnabled ? '' : 'none';
+
+  const p = stats.process;
+  const mc = stats.metrics_config;
+
+  // Extract series from metrics history
+  const cpuSeries = metricsHistory.map(s => s.cpu_percent);
+  const rssSeries = metricsHistory.map(s => s.rss_bytes);
+  const threadSeries = metricsHistory.map(s => s.threads);
+  const reqSeries = metricsHistory.map(s => s.request_count);
+
+  let html = '';
+  // Header with auto-refresh controls
+  html += `<div class="header-bar">
+    <h2>Dashboard</h2>
+    <div class="refresh-controls">
+      <span class="refresh-dot"></span>
+      <span>Auto-refresh</span>
+      <select onchange="setAutoRefresh(parseInt(this.value))">
+        <option value="5" ${autoRefreshInterval===5?'selected':''}>5s</option>
+        <option value="10" ${autoRefreshInterval===10?'selected':''}>10s</option>
+        <option value="30" ${autoRefreshInterval===30?'selected':''}>30s</option>
+        <option value="60" ${autoRefreshInterval===60?'selected':''}>60s</option>
+        <option value="0" ${autoRefreshInterval===0?'selected':''}>Off</option>
+      </select>
+      <span style="font-size:11px">Sampling: ${mc.sample_interval_secs}s / Retention: ${Math.round(mc.retention_secs/3600)}h</span>
+    </div>
+  </div>`;
+
+  // Process stats cards with sparklines
+  html += '<h3>Process</h3><div class="cards">';
+  html += cardWithChart('Memory (RSS)', formatBytes(p.rss_bytes), `Virtual: ${formatBytes(p.vms_bytes)}`,
+    sparklineSvg(rssSeries, '#6c63ff', v => formatBytes(v)));
+  html += cardWithChart('CPU', p.cpu_percent.toFixed(1) + '%', `user ${p.cpu_user_secs.toFixed(1)}s / sys ${p.cpu_system_secs.toFixed(1)}s`,
+    sparklineSvg(cpuSeries, '#22c55e', v => v.toFixed(1) + '%'));
+  html += cardWithChart('Threads', p.threads.toString(), `${p.open_fds} open fds`,
+    sparklineSvg(threadSeries, '#f59e0b', v => Math.round(v).toString()));
+  html += cardWithChart('Requests', reqSeries.length > 0 ? reqSeries[reqSeries.length - 1].toLocaleString() : '0', `total processed`,
+    sparklineSvg(reqSeries, '#3b82f6', v => v.toLocaleString()));
+  html += '</div>';
+
+  // Uptime & PID row
+  html += `<div class="cards">`;
+  html += card('Uptime', formatUptime(p.uptime_secs), `PID ${p.pid}`);
+  html += card('Metrics Points', metricsHistory.length.toString(),
+    metricsHistory.length > 0 ? `${formatTime(metricsHistory[0].timestamp)} - ${formatTime(metricsHistory[metricsHistory.length-1].timestamp)}` : 'No data');
+  html += '</div>';
+
+  // Storage cards
+  html += '<h3>Storage</h3><div class="cards">';
+  html += card('Status', stats.storage.is_healthy ? 'Healthy' : 'Unhealthy', stats.storage.backend, stats.storage.is_healthy ? 'green' : 'red');
+  html += card('Used Space', formatBytes(stats.storage.used_bytes), `of ${formatBytes(stats.storage.total_bytes)}`);
+  html += card('Objects', stats.storage.object_count.toLocaleString(), `across ${stats.buckets.length} bucket${stats.buckets.length !== 1 ? 's' : ''}`);
+  html += card('Extensions', exts.extensions.length.toString(), exts.extensions.filter(e => e.enabled).length + ' active');
+  html += '</div>';
+
+  // Extensions
+  if (exts.extensions.length > 0) {
+    html += '<h3>Extensions</h3><div class="cards">';
+    for (const ext of exts.extensions) {
+      html += `<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong>${escapeHtml(ext.name)}</strong>
+          <span class="badge ${ext.healthy ? 'badge-green' : 'badge-red'}">${ext.healthy ? 'healthy' : 'down'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim)">${escapeHtml(ext.description)}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px">v${escapeHtml(ext.version)}</div>
+      </div>`;
+    }
+    html += '</div>';
+  }
+
+  // Bucket table
+  if (stats.buckets.length > 0) {
+    html += '<h3>Buckets</h3><table><thead><tr><th>Name</th><th>Objects</th><th>Size</th><th>Created</th><th></th></tr></thead><tbody>';
+    for (const b of stats.buckets) {
+      html += `<tr>
+        <td><a style="color:var(--accent);cursor:pointer" onclick="browserBucket='${escapeHtml(b.name)}';browserPrefix='';navigate('browser')">${escapeHtml(b.name)}</a></td>
+        <td>${b.object_count.toLocaleString()}</td>
+        <td>${formatBytes(b.total_size)}</td>
+        <td>${formatDate(b.created_at)}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="browserBucket='${escapeHtml(b.name)}';browserPrefix='';navigate('browser')">Browse</button></td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+  }
+
+  m.innerHTML = html;
+}
+
+function card(label, value, sub, color) {
+  const c = color ? `;color:var(--${color})` : '';
+  return `<div class="card"><div class="card-label">${label}</div><div class="card-value" style="font-size:24px${c}">${value}</div><div class="card-sub">${sub || ''}</div></div>`;
+}
+
+function cardWithChart(label, value, sub, chartSvg) {
+  return `<div class="card">
+    <div class="card-label">${label}</div>
+    <div class="card-value" style="font-size:24px">${value}</div>
+    <div class="card-sub">${sub || ''}</div>
+    <div class="card-chart">${chartSvg}</div>
+  </div>`;
+}
+
+// ── Buckets ──
+async function renderBuckets(m) {
+  const buckets = await api.listBuckets();
+  let html = '<h2>Buckets</h2>';
+  html += `<div class="form-row">
+    <input id="new-bucket-name" placeholder="Bucket name" onkeydown="if(event.key==='Enter')createBucket()">
+    <button class="btn btn-primary" onclick="createBucket()">+ Create Bucket</button>
+  </div>`;
+
+  if (buckets.length === 0) {
+    html += '<div class="empty"><div class="empty-icon">&#9744;</div><p>No buckets yet. Create one above.</p></div>';
+  } else {
+    html += '<table><thead><tr><th>Name</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+    for (const b of buckets) {
+      html += `<tr>
+        <td><a style="color:var(--accent);cursor:pointer" onclick="browserBucket='${escapeHtml(b.name)}';browserPrefix='';navigate('browser')">${escapeHtml(b.name)}</a></td>
+        <td>${formatDate(b.createdAt)}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="browserBucket='${escapeHtml(b.name)}';browserPrefix='';navigate('browser')">Browse</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmDeleteBucket('${escapeHtml(b.name)}')">Delete</button>
+        </td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+  }
+  m.innerHTML = html;
+}
+
+async function createBucket() {
+  const input = document.getElementById('new-bucket-name');
+  const name = input.value.trim();
+  if (!name) return;
+  try {
+    await api.createBucket(name);
+    toast(`Bucket "${name}" created`);
+    input.value = '';
+    render();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function confirmDeleteBucket(name) {
+  showModal(`<h3>Delete Bucket</h3><p style="margin-bottom:16px">Are you sure you want to delete <strong>${escapeHtml(name)}</strong>? This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="doDeleteBucket('${escapeHtml(name)}')">Delete</button>
+    </div>`);
+}
+
+async function doDeleteBucket(name) {
+  closeModal();
+  try {
+    await api.deleteBucket(name);
+    toast(`Bucket "${name}" deleted`);
+    if (browserBucket === name) { browserBucket = ''; browserPrefix = ''; }
+    render();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Object Browser ──
+async function renderBrowser(m) {
+  let html = '<h2>Object Browser</h2>';
+
+  // Bucket selector
+  const buckets = await api.listBuckets();
+  html += '<div class="form-row">';
+  html += '<select id="browser-bucket-select" onchange="browserBucket=this.value;browserPrefix=\'\';browserContinuation=null;render()">';
+  html += '<option value="">-- Select Bucket --</option>';
+  for (const b of buckets) {
+    html += `<option value="${escapeHtml(b.name)}" ${b.name === browserBucket ? 'selected' : ''}>${escapeHtml(b.name)}</option>`;
+  }
+  html += '</select>';
+  html += '</div>';
+
+  if (!browserBucket) {
+    html += '<div class="empty"><div class="empty-icon">&#9776;</div><p>Select a bucket to browse objects.</p></div>';
+    m.innerHTML = html;
+    return;
+  }
+
+  // Breadcrumb
+  html += '<div class="breadcrumb">';
+  html += `<a onclick="browserPrefix='';browserContinuation=null;render()">${escapeHtml(browserBucket)}</a>`;
+  if (browserPrefix) {
+    const parts = browserPrefix.split('/').filter(Boolean);
+    let acc = '';
+    for (const p of parts) {
+      acc += p + '/';
+      const path = acc;
+      html += ` / <a onclick="browserPrefix='${escapeHtml(path)}';browserContinuation=null;render()">${escapeHtml(p)}</a>`;
+    }
+  }
+  html += '</div>';
+
+  // Upload area
+  html += `<div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()"
+    ondragover="event.preventDefault();this.classList.add('dragover')"
+    ondragleave="this.classList.remove('dragover')"
+    ondrop="event.preventDefault();this.classList.remove('dragover');handleDrop(event)">
+    <div style="font-size:24px;margin-bottom:8px">&#8682;</div>
+    <div>Click or drag files here to upload</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-top:4px">Files will be uploaded to ${escapeHtml(browserBucket)}/${escapeHtml(browserPrefix)}</div>
+    <input type="file" id="file-input" multiple onchange="handleFiles(this.files)">
+  </div>`;
+
+  // List objects
+  const result = await api.listObjects(browserBucket, browserPrefix, '/', browserContinuation);
+
+  // Folders
+  if (result.commonPrefixes.length > 0 || result.entries.length > 0) {
+    html += '<table><thead><tr><th>Name</th><th>Size</th><th>Modified</th><th>Actions</th></tr></thead><tbody>';
+
+    for (const prefix of result.commonPrefixes) {
+      const display = prefix.replace(browserPrefix, '');
+      html += `<tr>
+        <td><a style="color:var(--accent);cursor:pointer" onclick="browserPrefix='${escapeHtml(prefix)}';browserContinuation=null;render()">&#128193; ${escapeHtml(display)}</a></td>
+        <td>-</td><td>-</td><td></td>
+      </tr>`;
+    }
+
+    for (const obj of result.entries) {
+      const display = obj.key.replace(browserPrefix, '');
+      const key = obj.key;
+      html += `<tr>
+        <td style="font-family:monospace;font-size:12px">${escapeHtml(display)}</td>
+        <td>${formatBytes(obj.size)}</td>
+        <td>${formatDate(obj.lastModified)}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-ghost btn-sm" onclick="downloadObject('${escapeHtml(browserBucket)}','${escapeHtml(key)}')">&#8615; Download</button>
+          <button class="btn btn-ghost btn-sm" onclick="showObjectMeta('${escapeHtml(browserBucket)}','${escapeHtml(key)}')">&#9432; Info</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmDeleteObject('${escapeHtml(browserBucket)}','${escapeHtml(key)}')">&#10005;</button>
+        </td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+  } else {
+    html += '<div class="empty"><div class="empty-icon">&#128194;</div><p>This location is empty.</p></div>';
+  }
+
+  // Pagination
+  if (result.isTruncated && result.nextContinuation) {
+    html += `<div style="margin-top:16px;text-align:center">
+      <button class="btn btn-ghost" onclick="browserContinuation='${escapeHtml(result.nextContinuation)}';render()">Load More</button>
+    </div>`;
+  }
+
+  m.innerHTML = html;
+}
+
+async function handleFiles(files) {
+  for (const file of files) {
+    const key = browserPrefix + file.name;
+    try {
+      await api.putObject(browserBucket, key, file, file.type || undefined);
+      toast(`Uploaded ${file.name}`);
+    } catch (e) { toast(`Failed to upload ${file.name}: ${e.message}`, 'error'); }
+  }
+  render();
+}
+
+function handleDrop(event) {
+  const files = event.dataTransfer.files;
+  if (files.length) handleFiles(files);
+}
+
+async function downloadObject(bucket, key) {
+  const url = await api.getObjectUrl(bucket, key);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = key.split('/').pop();
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function showObjectMeta(bucket, key) {
+  try {
+    const headers = await api.headObject(bucket, key);
+    let rows = '';
+    const important = ['content-type', 'content-length', 'etag', 'last-modified'];
+    for (const k of important) {
+      if (headers[k]) {
+        let v = headers[k];
+        if (k === 'content-length') v = formatBytes(parseInt(v));
+        rows += `<div class="modal-meta-row"><span class="modal-meta-key">${escapeHtml(k)}</span><span>${escapeHtml(v)}</span></div>`;
+      }
+    }
+    // User meta (x-amz-meta-*)
+    for (const [k, v] of Object.entries(headers)) {
+      if (k.startsWith('x-amz-meta-')) {
+        rows += `<div class="modal-meta-row"><span class="modal-meta-key">${escapeHtml(k)}</span><span>${escapeHtml(v)}</span></div>`;
+      }
+    }
+    showModal(`<h3>${escapeHtml(key)}</h3>${rows}<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" onclick="closeModal();downloadObject('${escapeHtml(bucket)}','${escapeHtml(key)}')">Download</button></div>`);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function confirmDeleteObject(bucket, key) {
+  showModal(`<h3>Delete Object</h3><p style="margin-bottom:16px">Delete <strong>${escapeHtml(key)}</strong>?</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="doDeleteObject('${escapeHtml(bucket)}','${escapeHtml(key)}')">Delete</button>
+    </div>`);
+}
+
+async function doDeleteObject(bucket, key) {
+  closeModal();
+  try {
+    await api.deleteObject(bucket, key);
+    toast(`Deleted ${key}`);
+    render();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── RAG Search ──
+let searchResults = null;
+let searchQuery = '';
+
+async function renderSearch(m) {
+  let html = '<h2>RAG Search</h2>';
+  html += '<p style="margin-bottom:16px;color:var(--text-dim);font-size:13px">Semantic search across indexed objects using vector embeddings.</p>';
+
+  // Search form
+  const buckets = await api.listBuckets();
+  html += '<div class="form-row">';
+  html += `<input id="search-query" style="flex:1;min-width:200px" placeholder="Search query..." value="${escapeHtml(searchQuery)}" onkeydown="if(event.key==='Enter')doSearch()">`;
+  html += '<select id="search-bucket"><option value="">All buckets</option>';
+  for (const b of buckets) {
+    html += `<option value="${escapeHtml(b.name)}">${escapeHtml(b.name)}</option>`;
+  }
+  html += '</select>';
+  html += `<label style="font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:4px">Top-K
+    <input id="search-topk" type="number" value="10" min="1" max="50" style="width:60px">
+  </label>`;
+  html += '<button class="btn btn-primary" onclick="doSearch()">Search</button>';
+  html += '</div>';
+
+  // Results
+  if (searchResults) {
+    if (searchResults.results.length === 0) {
+      html += '<div class="empty"><div class="empty-icon">&#8981;</div><p>No results found.</p></div>';
+    } else {
+      html += `<p style="margin-bottom:12px;font-size:13px;color:var(--text-dim)">${searchResults.results.length} result${searchResults.results.length !== 1 ? 's' : ''}</p>`;
+      for (const r of searchResults.results) {
+        const pct = Math.round(r.score * 100);
+        html += `<div class="search-result">
+          <div class="search-result-header">
+            <span class="search-result-path">${escapeHtml(r.bucket)}/${escapeHtml(r.key)} <span style="color:var(--text-dim);font-weight:400">#${r.chunk_index}</span></span>
+            <span class="search-result-score">${pct}%</span>
+          </div>
+          <div class="score-bar"><div class="score-bar-fill" style="width:${pct}%"></div></div>
+          <div class="search-result-text">${escapeHtml(r.text.substring(0, 500))}${r.text.length > 500 ? '...' : ''}</div>
+          <div style="margin-top:8px">
+            <button class="btn btn-ghost btn-sm" onclick="downloadObject('${escapeHtml(r.bucket)}','${escapeHtml(r.key)}')">Download source</button>
+          </div>
+        </div>`;
+      }
+    }
+  }
+
+  m.innerHTML = html;
+}
+
+async function doSearch() {
+  const query = document.getElementById('search-query').value.trim();
+  if (!query) return;
+  searchQuery = query;
+  const topK = parseInt(document.getElementById('search-topk').value) || 10;
+  const bucket = document.getElementById('search-bucket').value || undefined;
+  try {
+    searchResults = await api.search(query, topK, bucket);
+    render();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Init ──
+(async function init() {
+  // Check if auth is required by probing stats endpoint.
+  try {
+    const r = await fetch('/_/api/stats');
+    if (r.status === 401) {
+      showLoginForm();
+      return;
+    }
+  } catch {}
+
+  try {
+    const exts = await api.getExtensions();
+    ragEnabled = exts.extensions.some(e => e.name === 'rag' && e.enabled);
+    document.getElementById('nav-search').style.display = ragEnabled ? '' : 'none';
+    // Show logout button if auth is enabled (indicated by presence of auth extension).
+    if (exts.extensions.some(e => e.name === 'auth' && e.enabled)) {
+      document.getElementById('logout-btn').style.display = '';
+    }
+  } catch {}
+
+  setAutoRefresh(autoRefreshInterval);
+  render();
+})();
+</script>
+</body>
+</html>

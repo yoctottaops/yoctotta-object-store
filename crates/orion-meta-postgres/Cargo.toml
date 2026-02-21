@@ -1,0 +1,16 @@
+[package]
+name = "orion-meta-postgres"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "PostgreSQL metadata store for Yoctotta - scales horizontally with connection pooling"
+
+[dependencies]
+orion-core.workspace = true
+async-trait.workspace = true
+sqlx.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+serde.workspace = true

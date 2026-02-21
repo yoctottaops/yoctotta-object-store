@@ -1,0 +1,18 @@
+[package]
+name = "orion-meta-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "SQLite metadata store for Yoctotta Object Store"
+
+[dependencies]
+orion-core.workspace = true
+async-trait.workspace = true
+rusqlite.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }

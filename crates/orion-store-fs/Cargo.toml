@@ -1,0 +1,25 @@
+[package]
+name = "orion-store-fs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Filesystem storage backend for Yoctotta Object Store"
+
+[dependencies]
+orion-core.workspace = true
+async-trait.workspace = true
+tokio = { workspace = true, features = ["fs", "io-util"] }
+tokio-stream.workspace = true
+tokio-util.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+sha2.workspace = true
+hex.workspace = true
+tracing.workspace = true
+futures.workspace = true
+serde_json.workspace = true
+async-recursion = "1"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { workspace = true, features = ["full"] }

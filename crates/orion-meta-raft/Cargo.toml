@@ -1,0 +1,20 @@
+[package]
+name = "orion-meta-raft"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Raft-replicated SQLite metadata store for Yoctotta - multi-node consensus without external dependencies"
+
+[dependencies]
+orion-core.workspace = true
+orion-meta-sqlite.workspace = true
+async-trait.workspace = true
+openraft.workspace = true
+tokio = { workspace = true, features = ["sync", "net", "time"] }
+serde.workspace = true
+serde_json.workspace = true
+bincode.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+rand.workspace = true
+reqwest = { workspace = true, features = ["json"] }

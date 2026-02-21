@@ -1,0 +1,85 @@
+# Yoctotta Object Store Configuration
+# =====================================
+
+# S3-compatible API listen address.
+listen = "0.0.0.0:9000"
+
+# Root directory for object data.
+data_dir = "./data"
+
+# ── Metadata Backend ────────────────────────────────────
+# Options: "sqlite", "postgres", "raft"
+#
+# sqlite   — Single-node, zero dependencies. Perfect for Pi, dev, small deploys.
+# postgres — Scales with connection pooling + read replicas. For serious production.
+# raft     — Multi-node replicated SQLite via Raft consensus. No external deps,
+#            same single binary, scales to ~5-10 nodes.
+meta_backend = "sqlite"
+
+# ── SQLite Config ──
+[meta_sqlite]
+filename = "orion.db"   # Relative to data_dir, or absolute path
+
+# ── PostgreSQL Config ──
+# [meta_postgres]
+# url = "postgres://orion:password@localhost:5432/orion"
+# max_connections = 20
+# min_connections = 2
+# connect_timeout_secs = 10
+# run_migrations = true
+
+# ── Raft Config ──
+# For multi-node clusters without external dependencies.
+# Each node gets a full SQLite replica, writes go through consensus.
+#
+# Quick start (3-node cluster):
+#
+#   Node 1 (bootstrap):
+#     orion --meta raft --node-id 1 --bootstrap
+#
+#   Node 2:
+#     orion --meta raft --node-id 2
+#
+#   Node 3:
+#     orion --meta raft --node-id 3
+#
+# [meta_raft]
+# node_id = 1
+# listen_addr = "0.0.0.0:9001"       # Raft RPC port (separate from S3)
+# db_filename = "orion-raft.db"       # Relative to data_dir
+# bootstrap = false                    # Set true on ONE node, first time only
+# read_consistency = "local"           # "local" = fast/eventual, "leader" = linearizable
+# election_timeout_min = 300           # ms
+# election_timeout_max = 600           # ms
+# heartbeat_interval = 100             # ms
+# snapshot_threshold = 5000            # log entries before snapshot
+#
+# # Initial cluster members (used during bootstrap).
+# initial_members = [
+#     [1, "10.0.0.1:9001"],
+#     [2, "10.0.0.2:9001"],
+#     [3, "10.0.0.3:9001"],
+# ]
+
+# ── Extensions ──────────────────────────────────────────
+
+[extensions.rag]
+chunk_size = 512
+chunk_overlap = 64
+indexable_types = ["text/*", "application/json", "application/xml"]
+
+[extensions.trigger]
+timeout_secs = 10
+max_concurrent = 16
+retries = 3
+
+# Example trigger rules:
+#
+# [[extensions.trigger.rules]]
+# name = "notify-on-upload"
+# events = ["s3:ObjectCreated:Put"]
+# bucket = "uploads"
+# url = "https://your-api.com/webhook/new-upload"
+# method = "POST"
+# headers = { Authorization = "Bearer your-token" }
+# enabled = true
