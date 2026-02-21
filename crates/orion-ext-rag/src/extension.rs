@@ -2,8 +2,9 @@ use async_trait::async_trait;
 use std::sync::Arc;
 
 use orion_core::extension::*;
+use orion_core::stream::collect_stream;
 use orion_core::types::*;
-use orion_core::Result;
+use orion_core::{Result, StorageBackend};
 
 use crate::embedder::Embedder;
 use crate::search::{SearchQuery, SearchResult};
@@ -37,7 +38,6 @@ fn default_indexable_types() -> Vec<String> {
         "text/*".into(),
         "application/json".into(),
         "application/xml".into(),
-        "application/pdf".into(),
     ]
 }
 
@@ -57,6 +57,7 @@ impl Default for RagConfig {
 pub struct RagExtension {
     embedder: Arc<dyn Embedder>,
     vector_store: Arc<dyn VectorStore>,
+    storage: Arc<dyn StorageBackend>,
     config: RagConfig,
     enabled: bool,
 }
@@ -65,16 +66,19 @@ impl RagExtension {
     pub fn new(
         embedder: Arc<dyn Embedder>,
         vector_store: Arc<dyn VectorStore>,
+        storage: Arc<dyn StorageBackend>,
     ) -> Self {
         Self {
             embedder,
             vector_store,
+            storage,
             config: RagConfig::default(),
             enabled: true,
         }
     }
 
     /// Semantic search across indexed objects.
+    /// Text is reconstructed on-the-fly from the original objects.
     pub async fn search(&self, query_text: &str, top_k: usize) -> Result<Vec<SearchResult>> {
         let vector = self.embedder.embed(query_text).await?;
         let query = SearchQuery {
@@ -84,7 +88,9 @@ impl RagExtension {
             bucket: None,
             key_prefix: None,
         };
-        self.vector_store.search(&query).await
+        let mut results = self.vector_store.search(&query).await?;
+        self.fill_text(&mut results).await;
+        Ok(results)
     }
 
     /// Search within a specific bucket.
@@ -102,7 +108,47 @@ impl RagExtension {
             bucket: Some(bucket.to_string()),
             key_prefix: None,
         };
-        self.vector_store.search(&query).await
+        let mut results = self.vector_store.search(&query).await?;
+        self.fill_text(&mut results).await;
+        Ok(results)
+    }
+
+    /// Reconstruct text for search results by fetching original objects
+    /// and extracting the matching chunk. Fails gracefully — if an object
+    /// is gone or unreadable, the text field stays empty.
+    async fn fill_text(&self, results: &mut [SearchResult]) {
+        for result in results.iter_mut() {
+            if !result.text.is_empty() {
+                continue; // already populated (e.g. from InMemoryVectorStore)
+            }
+
+            let key = ObjectKey {
+                bucket: result.bucket.clone(),
+                key: result.key.clone(),
+            };
+
+            let text = match self.fetch_chunk(&key, result.chunk_index).await {
+                Ok(t) => t,
+                Err(_) => continue, // object deleted or unreadable — leave text empty
+            };
+
+            result.text = text;
+        }
+    }
+
+    /// Fetch a specific chunk from an object by reading and re-chunking it.
+    async fn fetch_chunk(&self, key: &ObjectKey, chunk_index: u32) -> Result<String> {
+        let (stream, _meta) = self.storage.get(key).await?;
+        let data = collect_stream(stream).await?;
+
+        let text = std::str::from_utf8(&data)
+            .map_err(|_| orion_core::OrionError::Internal("non-UTF8 content".into()))?;
+
+        let chunks = self.chunk_text(text);
+        chunks
+            .into_iter()
+            .nth(chunk_index as usize)
+            .ok_or_else(|| orion_core::OrionError::Internal("chunk index out of range".into()))
     }
 
     /// Check if a content type should be indexed.
@@ -176,7 +222,7 @@ impl RagExtension {
                 bucket: bucket.to_string(),
                 key: key.to_string(),
                 chunk_index: i as u32,
-                text: chunk.clone(),
+                text: String::new(), // text not stored — reconstructed on-the-fly during search
                 vector,
             };
             self.vector_store.upsert(entry).await?;

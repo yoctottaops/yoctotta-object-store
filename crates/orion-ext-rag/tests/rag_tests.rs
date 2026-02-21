@@ -1,13 +1,49 @@
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use orion_core::extension::*;
+use orion_core::stream::DataStream;
 use orion_core::types::*;
+use orion_core::StorageBackend;
 use orion_ext_rag::*;
+
+/// Stub storage backend for tests. Text reconstruction isn't exercised
+/// since InMemoryVectorStore already returns text directly.
+struct MockStorage;
+
+#[async_trait]
+impl StorageBackend for MockStorage {
+    async fn put(&self, _key: &ObjectKey, _data: DataStream, _opts: &PutOptions) -> orion_core::Result<ObjectMeta> {
+        unimplemented!("not used in tests")
+    }
+    async fn get(&self, key: &ObjectKey) -> orion_core::Result<(DataStream, ObjectMeta)> {
+        Err(orion_core::OrionError::NotFound(key.key.clone()))
+    }
+    async fn delete(&self, _key: &ObjectKey) -> orion_core::Result<()> {
+        unimplemented!("not used in tests")
+    }
+    async fn head(&self, _key: &ObjectKey) -> orion_core::Result<ObjectMeta> {
+        unimplemented!("not used in tests")
+    }
+    async fn list(&self, _bucket: &str, _opts: &ListOptions) -> orion_core::Result<ListPage> {
+        unimplemented!("not used in tests")
+    }
+    async fn stats(&self) -> orion_core::Result<BackendStats> {
+        unimplemented!("not used in tests")
+    }
+    fn name(&self) -> &str {
+        "mock"
+    }
+}
+
+fn mock_storage() -> Arc<dyn StorageBackend> {
+    Arc::new(MockStorage)
+}
 
 fn make_rag() -> RagExtension {
     let embedder = Arc::new(MockEmbedder::new(16));
     let store = Arc::new(InMemoryVectorStore::new());
-    RagExtension::new(embedder, store)
+    RagExtension::new(embedder, store, mock_storage())
 }
 
 // ── MockEmbedder tests ──
@@ -285,7 +321,7 @@ async fn rag_extension_health() {
 async fn rag_post_write_indexes_text() {
     let embedder = Arc::new(MockEmbedder::new(16));
     let store = Arc::new(InMemoryVectorStore::new());
-    let rag = RagExtension::new(embedder, store.clone());
+    let rag = RagExtension::new(embedder, store.clone(), mock_storage());
 
     let key = ObjectKey::new("test-bucket", "doc.txt");
     let meta = ObjectMeta {
@@ -305,7 +341,7 @@ async fn rag_post_write_indexes_text() {
 async fn rag_post_write_skips_binary() {
     let embedder = Arc::new(MockEmbedder::new(16));
     let store = Arc::new(InMemoryVectorStore::new());
-    let rag = RagExtension::new(embedder, store.clone());
+    let rag = RagExtension::new(embedder, store.clone(), mock_storage());
 
     let key = ObjectKey::new("bucket", "image.png");
     let meta = ObjectMeta {
@@ -325,7 +361,7 @@ async fn rag_post_write_skips_binary() {
 async fn rag_post_delete_removes_vectors() {
     let embedder = Arc::new(MockEmbedder::new(16));
     let store = Arc::new(InMemoryVectorStore::new());
-    let rag = RagExtension::new(embedder, store.clone());
+    let rag = RagExtension::new(embedder, store.clone(), mock_storage());
 
     // Index a doc
     let key = ObjectKey::new("bucket", "doc.txt");
@@ -348,7 +384,7 @@ async fn rag_post_delete_removes_vectors() {
 async fn rag_search() {
     let embedder = Arc::new(MockEmbedder::new(16));
     let store = Arc::new(InMemoryVectorStore::new());
-    let rag = RagExtension::new(embedder, store.clone());
+    let rag = RagExtension::new(embedder, store.clone(), mock_storage());
 
     // Index documents
     let key = ObjectKey::new("bucket", "doc.txt");
@@ -371,7 +407,7 @@ async fn rag_search() {
 async fn rag_search_bucket_filter() {
     let embedder = Arc::new(MockEmbedder::new(16));
     let store = Arc::new(InMemoryVectorStore::new());
-    let rag = RagExtension::new(embedder, store.clone());
+    let rag = RagExtension::new(embedder, store.clone(), mock_storage());
 
     let ctx = ExtensionContext::new();
     let meta = ObjectMeta {
@@ -405,7 +441,7 @@ async fn rag_search_bucket_filter() {
 async fn rag_indexes_json_content_type() {
     let embedder = Arc::new(MockEmbedder::new(16));
     let store = Arc::new(InMemoryVectorStore::new());
-    let rag = RagExtension::new(embedder, store.clone());
+    let rag = RagExtension::new(embedder, store.clone(), mock_storage());
 
     let key = ObjectKey::new("bucket", "data.json");
     let meta = ObjectMeta {
@@ -425,7 +461,7 @@ async fn rag_indexes_json_content_type() {
 async fn rag_post_write_reindexes() {
     let embedder = Arc::new(MockEmbedder::new(16));
     let store = Arc::new(InMemoryVectorStore::new());
-    let rag = RagExtension::new(embedder, store.clone());
+    let rag = RagExtension::new(embedder, store.clone(), mock_storage());
 
     let key = ObjectKey::new("bucket", "doc.txt");
     let meta = ObjectMeta {

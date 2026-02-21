@@ -176,8 +176,13 @@ async fn main() -> anyhow::Result<()> {
         #[cfg(feature = "rag")]
         if !cli.no_rag {
             let embedder = Arc::new(orion_ext_rag::FastEmbedder::try_new()?);
-            let vector_store = Arc::new(orion_ext_rag::InMemoryVectorStore::new());
-            let mut rag = orion_ext_rag::RagExtension::new(embedder, vector_store);
+            let vector_store = Arc::new(
+                orion_ext_rag::SqliteVectorStore::new(
+                    &config.data_dir,
+                    orion_ext_rag::FastEmbedder::DIMS,
+                )?
+            );
+            let mut rag = orion_ext_rag::RagExtension::new(embedder, vector_store, store.clone());
 
             let rag_config = config
                 .extensions

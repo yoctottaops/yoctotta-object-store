@@ -16,6 +16,9 @@ toml.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 fastembed.workspace = true
+rusqlite.workspace = true
+usearch.workspace = true
+futures.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

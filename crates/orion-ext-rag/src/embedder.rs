@@ -39,6 +39,9 @@ pub struct FastEmbedder {
 }
 
 impl FastEmbedder {
+    /// Embedding dimensions for all-MiniLM-L6-v2.
+    pub const DIMS: usize = 384;
+
     /// Create a new FastEmbedder. Downloads the model on first use.
     pub fn try_new() -> Result<Self> {
         let options = fastembed::InitOptions::new(fastembed::EmbeddingModel::AllMiniLML6V2)

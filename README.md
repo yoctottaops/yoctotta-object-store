@@ -67,9 +67,9 @@ Every text object uploaded to Yoctotta is automatically:
 
 1. **Chunked** into overlapping segments (configurable size/overlap)
 2. **Embedded** using `all-MiniLM-L6-v2` — a fast, high-quality model that runs entirely on CPU via ONNX Runtime
-3. **Indexed** in an in-memory vector store for instant semantic search
+3. **Indexed** in a persistent vector store (SQLite + USearch HNSW) for fast semantic search
 
-All embedding runs asynchronously on background threads (`spawn_blocking`), so S3 reads, writes, and metadata operations are never blocked.
+All embedding and indexing runs asynchronously on background threads (`spawn_blocking`), so S3 reads, writes, and metadata operations are never blocked.
 
 Search via the UI or the API:
 
@@ -80,6 +80,21 @@ curl "http://localhost:9000/_/api/search?q=authentication+flow&top_k=10"
 # Search within a specific bucket
 curl "http://localhost:9000/_/api/search?q=deployment+guide&bucket=docs&top_k=5"
 ```
+
+### Vector Store Architecture
+
+The vector store is intentionally separate from the metadata backend. This is a deliberate design decision:
+
+- **Lean storage**: Only embeddings and chunk identifiers (bucket, key, chunk index) are persisted — no text blobs. Text is reconstructed on-the-fly from the original object during search, keeping the vector DB small.
+- **Universal**: The SQLite + USearch combo works regardless of which metadata backend is chosen (SQLite, Postgres, or Raft). No one loses vector search because of their metadata choice.
+- **Isolated**: The RAG extension is optional (`--no-rag`). Its data lives in a separate `rag_vectors.db` file — zero overhead when disabled, easy to reset.
+- **Non-blocking**: SQLite uses WAL mode; all I/O is offloaded to background threads. The HNSW index is rebuilt from SQLite on startup.
+
+### Future Plans
+
+- **pgvector backend**: When the metadata backend is PostgreSQL, a `PgVectorStore` using pgvector would eliminate the separate SQLite file and leverage Postgres's native vector indexing. The `VectorStore` trait already supports this — just a new implementation.
+- **Distributed vector search**: For multi-node (Raft) deployments, vector search is currently local to each node. A federated search that queries all nodes and merges results is planned.
+- **Multi-modal embeddings**: Support for image/audio embeddings alongside text, enabling semantic search across all content types.
 
 ## Metadata Backends
 
@@ -167,7 +182,7 @@ Every layer is a Rust trait — swap implementations without touching other laye
 
 ### RAG (Vector Search)
 
-Automatically indexes text objects into a vector store on upload. Uses `all-MiniLM-L6-v2` (384-dim, ONNX, CPU-only) for fast, high-quality embeddings. All inference is async and background — never blocks the request path.
+Automatically indexes text objects into a persistent vector store on upload. Uses `all-MiniLM-L6-v2` (384-dim, ONNX, CPU-only) for fast embeddings, SQLite for persistence, and USearch HNSW for sub-millisecond approximate nearest-neighbor search. Text is not stored in the index — it's reconstructed on-the-fly from the original object, keeping the vector DB lean. All inference and I/O is async and background — never blocks the request path.
 
 ### Triggers (Webhooks)
 
